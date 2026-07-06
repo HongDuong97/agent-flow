@@ -21,7 +21,7 @@ export function HighlightText({ text, query }: { text: string; query?: string })
   )
 }
 
-export function TranscriptMessage({ message, compact = false, searchQuery }: { message: ConversationMessage; compact?: boolean; searchQuery?: string }) {
+export function TranscriptMessage({ message, compact = false, searchQuery, assistantLabel = 'CLAUDE' }: { message: ConversationMessage; compact?: boolean; searchQuery?: string; assistantLabel?: string }) {
   const [expanded, setExpanded] = useState(false)
 
   switch (message.type) {
@@ -50,7 +50,7 @@ export function TranscriptMessage({ message, compact = false, searchQuery }: { m
             border: `1px solid ${COLORS.holoBorder08}`,
           }}
         >
-          <div className="text-[9px] mb-1 font-semibold tracking-wider" style={{ color: COLORS.assistantLabel }}>CLAUDE</div>
+          <div className="text-[9px] mb-1 font-semibold tracking-wider" style={{ color: COLORS.assistantLabel }}>{assistantLabel}</div>
           <div style={{ color: COLORS.assistantText }} className="whitespace-pre-wrap break-words">
             <HighlightText text={compact ? message.content.slice(0, 200) + (message.content.length > 200 ? '...' : '') : message.content} query={searchQuery} />
           </div>

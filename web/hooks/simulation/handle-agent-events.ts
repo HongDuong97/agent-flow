@@ -29,7 +29,8 @@ export function handleAgentSpawn(
       ...existing,
       state: 'idle',
       ...(task ? { task } : {}),
-      ...(model ? { tokensMax: ctx.getContextWindowSize(model) } : {}),
+      ...(model ? { model, tokensMax: ctx.getContextWindowSize(model) } : {}),
+      ...(runtime ? { runtime } : {}),
     })
     return
   }
@@ -81,6 +82,7 @@ export function handleAgentSpawn(
     x, y, vx: 0, vy: 0,
     pinned: false, isMain,
     ...(runtime ? { runtime } : {}),
+    ...(model ? { model } : {}),
     task,
     spawnTime: currentTime,
     opacity: 0, scale: 0.3,
@@ -190,6 +192,7 @@ export function handleModelDetected(
   if (agent) {
     state.agents.set(agentName, {
       ...agent,
+      model,
       tokensMax: ctx.getContextWindowSize(model),
     })
   }

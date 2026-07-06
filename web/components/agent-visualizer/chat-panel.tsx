@@ -12,6 +12,7 @@ interface ChatPanelProps {
   agentName: string
   agentState: AgentState
   conversation: ConversationMessage[]
+  runtime?: 'claude' | 'codex'
   onClose: () => void
 }
 
@@ -20,6 +21,7 @@ export function AgentChatPanel({
   agentName,
   agentState,
   conversation,
+  runtime,
   onClose,
 }: ChatPanelProps) {
   const { ref: logRef } = useAutoScroll(conversation.length, visible)
@@ -62,7 +64,7 @@ export function AgentChatPanel({
             </div>
           ) : (
             conversation.map((msg) => (
-              <TranscriptMessage key={msg.id} message={msg} />
+              <TranscriptMessage key={msg.id} message={msg} assistantLabel={runtime === 'codex' ? 'CODEX' : 'CLAUDE'} />
             ))
           )}
         </div>

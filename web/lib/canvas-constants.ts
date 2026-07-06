@@ -3,8 +3,11 @@
 /** Context window size by model family. Patterns are checked in order;
  *  first match wins. Matched against lower-cased model IDs. */
 export const MODEL_FAMILY_CONTEXT: ReadonlyArray<{ pattern: RegExp; size: number }> = [
-  { pattern: /(opus|sonnet)-\d/, size: 1_000_000 },
+  { pattern: /(opus|sonnet|fable|mythos)-\d/, size: 1_000_000 },
   { pattern: /haiku-\d/, size: 200_000 },
+  // Codex/GPT models. Fallback only — Codex normally reports its own
+  // authoritative window via event_msg.token_count.info.model_context_window.
+  { pattern: /gpt-\d/, size: 400_000 },
 ]
 /** Used when no family pattern matches (unknown model). */
 export const DEFAULT_CONTEXT_SIZE = 200_000
@@ -162,7 +165,19 @@ export function getDiscoveryCardDimensions(label: string, contentLines: string[]
 
 export const TOOL_MAX_CARD_W = 160
 
-/** Blended $/M-token rate for Sonnet-class models */
+/** Blended $/M-token rate by model family (0.75 × input + 0.25 × output
+ *  per-MTok pricing, the same weighting the original Sonnet-class rate used).
+ *  Patterns are checked in order; first match wins. Matched against
+ *  lower-cased model IDs. */
+export const MODEL_FAMILY_COST: ReadonlyArray<{ pattern: RegExp; rate: number }> = [
+  { pattern: /(fable|mythos)-\d/, rate: 20 }, // $10 in / $50 out
+  { pattern: /opus-\d/, rate: 10 },           // $5 in / $25 out
+  { pattern: /sonnet-\d/, rate: 6 },          // $3 in / $15 out
+  { pattern: /haiku-\d/, rate: 2 },           // $1 in / $5 out
+  { pattern: /gpt-\d/, rate: 5 },             // gpt-5.3-codex: $1.75 in / $14 out
+]
+
+/** Blended $/M-token fallback rate for unknown models (Sonnet-class) */
 export const COST_RATE = 6
 
 // ─── Agent drawing constants ────────────────────────────────────────────────

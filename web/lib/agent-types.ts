@@ -31,6 +31,9 @@ export interface Agent {
   /** Which agent runtime produced this agent — used to pick the brand logo.
    *  Optional for forward compat with events that don't carry it (defaults to 'claude'). */
   runtime?: 'claude' | 'codex'
+  /** Model ID last reported for this agent (agent_spawn / model_detected).
+   *  Drives context-window sizing and the per-family cost rate. */
+  model?: string
   currentTool?: string
   task?: string
   spawnTime: number

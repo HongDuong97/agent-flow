@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- **New model support — Claude Fable 5 / Mythos 5, Sonnet 5, Opus 4.8, GPT-5.x Codex** (#57)
+  - Context window sizing: `fable`/`mythos` family recognized as 1M context (previously fell back to 200k, showing the gauge 5× overfull); `gpt-*` family recognized as 400k as the fallback when Codex doesn't report its own authoritative window. Sonnet 5 / Opus 4.8 already matched the existing family patterns
+  - Cost display: per-model-family blended $/M rates (Fable/Mythos $10/$50, Opus $5/$25, Sonnet $3/$15, Haiku $1/$5, GPT-5.x Codex $1.75/$14) replace the single Sonnet-class rate that was applied to every agent. Agents now carry the detected model ID, and the cost pill, summary panel, and per-tool breakdown all use the owning agent's rate
+- **Codex session discovery fixes** — addresses reports of Codex sessions not appearing
+  - Windows: workspace/cwd matching is now case-insensitive on win32 (VS Code reports `c:\...`, Codex writes `C:\...` — sessions never matched)
+  - Large `session_meta`: the first-line reader now grows up to 1MB instead of a fixed 64KB — newer Codex versions embed full base instructions and AGENTS.md content, which silently broke cwd extraction and skipped the session
+  - Silent cwd mismatch: when recent Codex sessions exist but none ran in the current workspace, a warning now says so (the most common cause: launching `npx agent-flow-app` from a different directory than the Codex session). Warnings are visible without `--verbose`
+- Fix: assistant messages in Codex sessions were labeled "CLAUDE" in the transcript panels and canvas bubbles — the label now follows the session runtime ("CODEX") (#49)
+
 ## 0.8.1
 
 - **Opt-out anonymous usage telemetry** — Agent Flow now tracks whether people come back after day 1 so we can tell whether it's actually useful. Only aggregate session metadata is sent, never prompts, file paths, or code

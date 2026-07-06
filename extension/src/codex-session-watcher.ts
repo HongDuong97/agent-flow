@@ -92,22 +92,35 @@ function recentSessionDirs(now: Date): string[] {
  *  UTF-8 safety: `\n` is 0x0a, which never appears as a continuation byte in
  *  a multi-byte UTF-8 sequence (continuation bytes are 0x80–0xBF), so slicing
  *  at the byte-indexed newline is guaranteed to land on a character boundary.
- *  If no newline is found in the first 64KB (pathological session_meta), we
- *  fall back to the full read — JSON.parse will fail on the truncated object
- *  and we'll return null rather than emit a corrupted cwd. */
+ *
+ *  session_meta is typically well under 4KB, but base_instructions (which
+ *  newer Codex versions embed in full, including AGENTS.md content) can push
+ *  it far larger — keep reading in chunks until the first newline, up to a
+ *  1MB cap. Past the cap we give up: JSON.parse fails on the truncated object
+ *  and we return null rather than emit a corrupted cwd. */
 function readSessionCwd(filePath: string): string | null {
+  const CHUNK_SIZE = 65536
+  const MAX_FIRST_LINE = 1048576
   try {
     const fd = fs.openSync(filePath, 'r')
     try {
-      // First line is session_meta; it's typically well under 4KB, but
-      // base_instructions can push it larger. Read a generous chunk.
-      const buf = Buffer.alloc(65536)
-      const read = fs.readSync(fd, buf, 0, buf.length, 0)
-      // indexOf bounded to the filled portion — unwritten bytes are zero and
-      // would never match 0x0a, but an explicit end offset makes this obvious.
-      const firstNewline = buf.subarray(0, read).indexOf(0x0a)
-      const end = firstNewline >= 0 ? firstNewline : read
-      const line = buf.slice(0, end).toString('utf-8')
+      const chunks: Buffer[] = []
+      let total = 0
+      let end = -1
+      while (total < MAX_FIRST_LINE) {
+        const buf = Buffer.alloc(CHUNK_SIZE)
+        const read = fs.readSync(fd, buf, 0, buf.length, total)
+        if (read <= 0) break
+        const filled = buf.subarray(0, read)
+        // indexOf bounded to the filled portion — unwritten bytes are zero and
+        // would never match 0x0a, but an explicit end offset makes this obvious.
+        const newlineAt = filled.indexOf(0x0a)
+        chunks.push(filled)
+        total += read
+        if (newlineAt >= 0) { end = total - read + newlineAt; break }
+      }
+      const data = Buffer.concat(chunks)
+      const line = data.subarray(0, end >= 0 ? end : data.length).toString('utf-8')
       const parsed = JSON.parse(line) as { type?: string; payload?: { cwd?: string } }
       if (parsed.type !== 'session_meta') return null
       return typeof parsed.payload?.cwd === 'string' ? parsed.payload.cwd : null
@@ -122,6 +135,8 @@ export class CodexSessionWatcher implements AgentSessionWatcher {
   private sessions = new Map<string, WatchedCodexSession>()
   private workspacePath: string | null = null
   private scanInterval: NodeJS.Timeout | null = null
+  /** One-shot flag so the cwd-mismatch hint is logged at most once per process. */
+  private cwdMismatchWarned = false
 
   private readonly _onEvent = new TypedEventEmitter<AgentEvent>()
   private readonly _onSessionDetected = new TypedEventEmitter<string>()
@@ -189,6 +204,7 @@ export class CodexSessionWatcher implements AgentSessionWatcher {
 
   private scanForSessions(): void {
     const now = new Date()
+    let skippedByCwd = 0
     for (const dir of recentSessionDirs(now)) {
       if (!fs.existsSync(dir)) continue
 
@@ -221,11 +237,26 @@ export class CodexSessionWatcher implements AgentSessionWatcher {
           const cwd = readSessionCwd(filePath)
           if (cwd === null) continue
           const resolvedCwd = this.resolvePath(cwd)
-          if (!resolvedCwd || !this.pathMatchesWorkspace(resolvedCwd)) continue
+          if (!resolvedCwd || !this.pathMatchesWorkspace(resolvedCwd)) {
+            skippedByCwd++
+            continue
+          }
         }
 
         this.attachSession(filePath, stat)
       }
+    }
+
+    // Recent Codex activity exists but none of it belongs to this workspace —
+    // the #1 reason users see no Codex events. Say so once, loudly enough to
+    // survive the standalone app's default log level.
+    if (skippedByCwd > 0 && this.sessions.size === 0 && !this.cwdMismatchWarned) {
+      this.cwdMismatchWarned = true
+      log.warn(
+        `Found ${skippedByCwd} recent Codex session(s), but none ran in ${this.workspacePath}. ` +
+        `Codex sessions are only shown for the current workspace — launch the visualizer from the ` +
+        `directory where Codex runs (or open that folder in VS Code).`,
+      )
     }
   }
 
@@ -238,10 +269,15 @@ export class CodexSessionWatcher implements AgentSessionWatcher {
     try { return fs.realpathSync(p) } catch { return p }
   }
 
+  /** Windows filesystems are case-insensitive and tools disagree on drive-letter
+   *  case (VS Code reports `c:\...`, Codex writes `C:\...`) — compare folded there. */
   private pathMatchesWorkspace(p: string): boolean {
     if (!this.workspacePath) return true
-    if (p === this.workspacePath) return true
-    return p.startsWith(this.workspacePath + path.sep)
+    const fold = (s: string) => process.platform === 'win32' ? s.toLowerCase() : s
+    const candidate = fold(p)
+    const workspace = fold(this.workspacePath)
+    if (candidate === workspace) return true
+    return candidate.startsWith(workspace + path.sep)
   }
 
   private attachSession(filePath: string, stat: fs.Stats): void {

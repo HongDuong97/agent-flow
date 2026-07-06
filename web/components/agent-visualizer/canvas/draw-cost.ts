@@ -1,11 +1,23 @@
 import { Agent, ToolCallNode, NODE } from '@/lib/agent-types'
 import { COLORS } from '@/lib/colors'
-import { COST_RATE, COST_DRAW, COST_PANEL, MIN_VISIBLE_OPACITY } from '@/lib/canvas-constants'
+import { COST_RATE, MODEL_FAMILY_COST, COST_DRAW, COST_PANEL, MIN_VISIBLE_OPACITY } from '@/lib/canvas-constants'
 import { formatTokens } from '@/lib/utils'
 import { truncateText } from './draw-misc'
 
-export function agentCost(tokensUsed: number): number {
-  return (tokensUsed / 1_000_000) * COST_RATE
+/** Blended $/M-token rate for a model ID — first matching family wins,
+ *  unknown models fall back to the Sonnet-class rate. */
+export function modelCostRate(model?: string): number {
+  if (model) {
+    const id = model.toLowerCase()
+    for (const { pattern, rate } of MODEL_FAMILY_COST) {
+      if (pattern.test(id)) return rate
+    }
+  }
+  return COST_RATE
+}
+
+export function agentCost(tokensUsed: number, model?: string): number {
+  return (tokensUsed / 1_000_000) * modelCostRate(model)
 }
 
 /** Tool name -> color for mini cost bar */
@@ -38,7 +50,7 @@ export function drawCostLabels(
 
   for (const [, agent] of agents) {
     if (agent.opacity < MIN_VISIBLE_OPACITY) continue
-    const cost = agentCost(agent.tokensUsed)
+    const cost = agentCost(agent.tokensUsed, agent.model)
     if (cost < COST_DRAW.minDisplayCost) continue
 
     const r = agent.isMain ? NODE.radiusMain : NODE.radiusSub
@@ -123,23 +135,25 @@ export function drawCostSummaryPanel(
 
   // Compute totals
   const totalTokens = agentList.reduce((s, a) => s + a.tokensUsed, 0)
-  const totalCost = agentCost(totalTokens)
 
   // Per-agent breakdown sorted by cost desc
   const agentBreakdown = agentList
-    .map(a => ({ name: a.name, tokens: a.tokensUsed, cost: agentCost(a.tokensUsed) }))
+    .map(a => ({ name: a.name, tokens: a.tokensUsed, cost: agentCost(a.tokensUsed, a.model) }))
     .sort((a, b) => b.cost - a.cost)
+  const totalCost = agentBreakdown.reduce((s, a) => s + a.cost, 0)
 
-  // Per-tool-type breakdown
-  const toolBreakdown = new Map<string, number>()
+  // Per-tool-type breakdown, costed at the owning agent's model rate
+  const toolBreakdown = new Map<string, { tokens: number; cost: number }>()
   for (const [, tc] of toolCalls) {
     if (tc.tokenCost) {
-      const key = tc.toolName
-      toolBreakdown.set(key, (toolBreakdown.get(key) || 0) + tc.tokenCost)
+      const entry = toolBreakdown.get(tc.toolName) || { tokens: 0, cost: 0 }
+      entry.tokens += tc.tokenCost
+      entry.cost += agentCost(tc.tokenCost, agents.get(tc.agentId)?.model)
+      toolBreakdown.set(tc.toolName, entry)
     }
   }
   const toolList = Array.from(toolBreakdown.entries())
-    .map(([name, tokens]) => ({ name, tokens, cost: agentCost(tokens) }))
+    .map(([name, { tokens, cost }]) => ({ name, tokens, cost }))
     .sort((a, b) => b.cost - a.cost)
 
   // Panel dimensions — positioned top-right

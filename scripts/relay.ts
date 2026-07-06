@@ -374,7 +374,9 @@ function resolveRuntimeMode(explicit?: RelayRuntimeMode): RelayRuntimeMode {
 export async function createRelay(options: RelayOptions): Promise<Relay> {
   const { workspace } = options
   verbose = options.verbose ?? false
-  if (!verbose) setLogLevel('error')
+  // Keep warnings visible without --verbose — actionable hints (e.g. "Codex
+  // sessions exist but none match this workspace") must reach the user.
+  if (!verbose) setLogLevel('warn')
   if (relayCreated) {
     throw new Error('createRelay() can only be called once per process')
   }
