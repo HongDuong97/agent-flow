@@ -11,7 +11,7 @@ import * as os from 'os'
 import { HookServer } from '../extension/src/hook-server'
 import { AgentEvent, SessionInfo, WatchedSession } from '../extension/src/protocol'
 import { TranscriptParser } from '../extension/src/transcript-parser'
-import { readNewFileLines } from '../extension/src/fs-utils'
+import { readNewFileLines, foldPathCase } from '../extension/src/fs-utils'
 import { scanSubagentsDir, readSubagentNewLines } from '../extension/src/subagent-watcher'
 import { handlePermissionDetection } from '../extension/src/permission-detection'
 import { CodexSessionWatcher } from '../extension/src/codex-session-watcher'
@@ -274,19 +274,22 @@ function scanForActiveSessions(workspace: string) {
   const encoded = resolved.replace(/[^a-zA-Z0-9]/g, '-')
 
   const dirsToScan: string[] = []
-  const projectDir = path.join(CLAUDE_DIR, encoded)
-  if (fs.existsSync(projectDir)) dirsToScan.push(projectDir)
-
+  // Case-folded on Windows — VS Code/shells report `c:\...` while Claude Code
+  // encodes `C--...`, so exact string matching never found the project dir there.
+  const encodedFolded = foldPathCase(encoded)
   try {
     for (const dir of fs.readdirSync(CLAUDE_DIR, { withFileTypes: true })) {
       if (!dir.isDirectory()) continue
-      const fullPath = path.join(CLAUDE_DIR, dir.name)
-      if (fullPath === projectDir) continue
-      if (dir.name.startsWith(encoded + '-')) {
-        dirsToScan.push(fullPath)
+      const nameFolded = foldPathCase(dir.name)
+      if (nameFolded === encodedFolded || nameFolded.startsWith(encodedFolded + '-')) {
+        dirsToScan.push(path.join(CLAUDE_DIR, dir.name))
       }
     }
-  } catch {}
+  } catch {
+    // readdir failed — fall back to the exact-match dir if it exists
+    const projectDir = path.join(CLAUDE_DIR, encoded)
+    if (fs.existsSync(projectDir)) dirsToScan.push(projectDir)
+  }
 
   for (const dirPath of dirsToScan) {
     try {

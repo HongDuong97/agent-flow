@@ -49,3 +49,10 @@ export function readNewFileLines(
   const lines = parts.filter(Boolean)
   return { lines, newSize: stat.size, tail }
 }
+
+/** Case-fold a path string for comparison on Windows, where the filesystem is
+ *  case-insensitive and tools disagree on drive-letter case (VS Code reports
+ *  `c:\...`, Claude Code and most shells report `C:\...`). Identity elsewhere. */
+export function foldPathCase(p: string): string {
+  return process.platform === 'win32' ? p.toLowerCase() : p
+}

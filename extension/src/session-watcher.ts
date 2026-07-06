@@ -9,7 +9,7 @@ import {
 } from './constants'
 import type { AgentSessionWatcher, SessionLifecycleEvent } from './session-runtime'
 import { TranscriptParser } from './transcript-parser'
-import { readNewFileLines } from './fs-utils'
+import { readNewFileLines, foldPathCase } from './fs-utils'
 import { handlePermissionDetection } from './permission-detection'
 import { scanSubagentsDir, readSubagentNewLines } from './subagent-watcher'
 import { createLogger } from './logger'
@@ -138,15 +138,13 @@ export class SessionWatcher implements AgentSessionWatcher {
       this.resolvedWorkspace = resolved
 
       // Try the resolved encoding first; fall back to unresolved if the directory doesn't exist
-      // (handles edge cases where Claude Code didn't resolve symlinks the same way)
-      const resolvedDir = path.join(CLAUDE_DIR, encoded)
-      if (fs.existsSync(resolvedDir)) {
-        this.workspacePath = encoded
-      } else {
-        const unresolvedEncoded = workspaceFolder.replace(/[^a-zA-Z0-9]/g, '-')
-        const unresolvedDir = path.join(CLAUDE_DIR, unresolvedEncoded)
-        this.workspacePath = fs.existsSync(unresolvedDir) ? unresolvedEncoded : encoded
-      }
+      // (handles edge cases where Claude Code didn't resolve symlinks the same way).
+      // findProjectDirName returns the on-disk casing, so downstream string
+      // comparisons against readdir results stay exact.
+      const unresolvedEncoded = workspaceFolder.replace(/[^a-zA-Z0-9]/g, '-')
+      this.workspacePath = this.findProjectDirName(encoded)
+        ?? this.findProjectDirName(unresolvedEncoded)
+        ?? encoded
       log.info(`Starting — scoped to project: ${this.workspacePath}`)
     } else {
       log.info('Starting — no workspace, scanning all projects')
@@ -209,6 +207,23 @@ export class SessionWatcher implements AgentSessionWatcher {
     } catch (err) { log.debug('Dir watch failed (may not exist yet):', err) }
   }
 
+  /** Find the actual on-disk project dir name under CLAUDE_DIR for an encoded
+   *  workspace path. On Windows the lookup is case-insensitive (VS Code reports
+   *  `c:\...` while Claude Code encodes `C--...`) and returns the real casing.
+   *  Returns null when no matching directory exists. */
+  private findProjectDirName(encoded: string): string | null {
+    if (process.platform !== 'win32') {
+      return fs.existsSync(path.join(CLAUDE_DIR, encoded)) ? encoded : null
+    }
+    try {
+      const folded = encoded.toLowerCase()
+      for (const entry of fs.readdirSync(CLAUDE_DIR, { withFileTypes: true })) {
+        if (entry.isDirectory() && entry.name.toLowerCase() === folded) return entry.name
+      }
+    } catch { /* CLAUDE_DIR may not exist yet */ }
+    return null
+  }
+
   /** Check whether a project dir contains sessions running under the workspace.
    *  The encoded dir name is lossy (hyphens and path separators both become -),
    *  so instead of trying to decode it, we read the cwd from the JSONL files
@@ -217,7 +232,8 @@ export class SessionWatcher implements AgentSessionWatcher {
   private isContainedProject(encodedDirName: string): boolean {
     if (!this.workspacePath || !this.resolvedWorkspace) return false
     // Quick prefix check to avoid reading files from obviously unrelated dirs
-    if (!encodedDirName.startsWith(this.workspacePath + '-')) return false
+    // (case-folded on Windows — encodings from different tools disagree on case)
+    if (!foldPathCase(encodedDirName).startsWith(foldPathCase(this.workspacePath) + '-')) return false
 
     const cached = this.containedProjectCache.get(encodedDirName)
     if (cached !== undefined) return cached
@@ -231,6 +247,8 @@ export class SessionWatcher implements AgentSessionWatcher {
 
   /** Read JSONL files in a project dir to find the cwd and check containment. */
   private readCwdFromProjectDir(encodedDirName: string): boolean {
+    if (!this.resolvedWorkspace) return false
+    const workspaceFolded = foldPathCase(this.resolvedWorkspace)
     const dirPath = path.join(CLAUDE_DIR, encodedDirName)
     try {
       const files = fs.readdirSync(dirPath)
@@ -250,8 +268,9 @@ export class SessionWatcher implements AgentSessionWatcher {
               if (typeof entry.cwd === 'string') {
                 let cwd = entry.cwd
                 try { cwd = fs.realpathSync(cwd) } catch { /* use as-is */ }
-                return cwd === this.resolvedWorkspace
-                  || cwd.startsWith(this.resolvedWorkspace + path.sep)
+                const cwdFolded = foldPathCase(cwd)
+                return cwdFolded === workspaceFolded
+                  || cwdFolded.startsWith(workspaceFolded + path.sep)
               }
             } catch { /* malformed line, try next */ }
           }
