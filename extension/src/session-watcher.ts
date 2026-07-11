@@ -118,7 +118,20 @@ export class SessionWatcher implements AgentSessionWatcher {
       }, sessionId)
 
       for (const [, sub] of session.subagentWatchers) {
+        if (session.spawnedSubagents.has(sub.agentName)) {
+          const model = session.modelDetectedAgents.get(sub.agentName)
+          this.emit({ time: 0, type: 'subagent_dispatch', payload: { parent: ORCHESTRATOR_NAME, child: sub.agentName, task: sub.agentName } }, sessionId)
+          this.emit({ time: 0, type: 'agent_spawn', payload: { name: sub.agentName, parent: ORCHESTRATOR_NAME, task: sub.agentName, ...(model ? { model } : {}) } }, sessionId)
+        }
         sub.spawnEmitted = false
+      }
+
+      for (const [agent, model] of session.modelDetectedAgents) {
+        this.emit({
+          time: 0,
+          type: 'model_detected',
+          payload: { agent, model },
+        }, sessionId)
       }
 
       this._onSessionDetected.fire(sessionId)
@@ -395,6 +408,7 @@ export class SessionWatcher implements AgentSessionWatcher {
       label: defaultLabel,
       labelSet: false,
       model: null,
+      modelDetectedAgents: new Map(),
       permissionTimer: null,
       permissionEmitted: false,
       contextBreakdown: { systemPrompt: SYSTEM_PROMPT_BASE_TOKENS, userMessages: 0, toolResults: 0, reasoning: 0, subagentResults: 0 },

@@ -189,6 +189,8 @@ export interface WatchedSession {
   label: string
   labelSet: boolean
   model: string | null
+  /** Maps agent names to their last emitted model ID — re-emits on model change */
+  modelDetectedAgents: Map<string, string>
   permissionTimer: NodeJS.Timeout | null
   permissionEmitted: boolean
   contextBreakdown: {

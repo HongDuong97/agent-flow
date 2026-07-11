@@ -47,7 +47,7 @@ interface PanelHeaderProps {
 export function PanelHeader({ children, onClose, className = 'mb-2', actions }: PanelHeaderProps) {
   return (
     <div className={`flex items-center justify-between ${className}`}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         {children}
       </div>
       <div className="flex items-center gap-1">

@@ -12,3 +12,35 @@ export function formatTokens(tokens: number): string {
 export function truncatePath(path: string, segments = 3): string {
   return path.split('/').slice(-segments).join('/')
 }
+
+const PROVIDER_PREFIX = /^[a-z]+\.anthropic\./
+const VERSION_SUFFIX = /-v\d+:\d+$/
+const DATE_STAMP = /-\d{8}(?=$|-)/
+
+const CLAUDE_NEW = /claude-(sonnet|opus|haiku|fable|mythos)-(\d+)(?:-(\d+))?/
+const CLAUDE_LEGACY = /claude-(\d+)(?:-(\d+))?-(sonnet|opus|haiku|fable|mythos)/
+const GPT = /gpt-(\S+?)(?:-\d{4}-\d{2}-\d{2})?$/
+
+function claudeLabel(family: string, major: string, minor?: string): string {
+  const name = family[0].toUpperCase() + family.slice(1)
+  return minor ? `${name} ${major}.${minor}` : `${name} ${major}`
+}
+
+/** Format a raw model ID for display (e.g. 'claude-opus-4-6-20250514' → 'Opus 4.6'). */
+export function formatModelName(model: string): string {
+  const base = model
+    .replace(PROVIDER_PREFIX, '')
+    .replace(VERSION_SUFFIX, '')
+    .replace(DATE_STAMP, '')
+
+  const m = base.match(CLAUDE_NEW)
+  if (m) return claudeLabel(m[1], m[2], m[3])
+
+  const legacy = base.match(CLAUDE_LEGACY)
+  if (legacy) return claudeLabel(legacy[3], legacy[1], legacy[2])
+
+  const gpt = base.match(GPT)
+  if (gpt) return `GPT-${gpt[1]}`
+
+  return base
+}

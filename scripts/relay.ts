@@ -208,6 +208,7 @@ function watchSession(sessionId: string, filePath: string) {
     subagentsDirWatcher: null, subagentsDir: null,
     label: defaultLabel, labelSet: false,
     model: null,
+    modelDetectedAgents: new Map(),
     permissionTimer: null, permissionEmitted: false,
     contextBreakdown: { systemPrompt: SYSTEM_PROMPT_BASE_TOKENS, userMessages: 0, toolResults: 0, reasoning: 0, subagentResults: 0 },
   }

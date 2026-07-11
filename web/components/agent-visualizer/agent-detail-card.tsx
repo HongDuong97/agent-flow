@@ -2,7 +2,7 @@
 
 import { CARD, Z, type AgentState } from '@/lib/agent-types'
 import { COLORS, getStateColor } from '@/lib/colors'
-import { formatTokens } from '@/lib/utils'
+import { formatTokens, formatModelName } from '@/lib/utils'
 import { GlassCard } from './glass-card'
 import { PanelHeader, ProgressBar } from './shared-ui'
 
@@ -11,6 +11,7 @@ interface AgentDetailCardProps {
     id: string
     name: string
     state: AgentState
+    model?: string
     tokensUsed: number
     tokensMax: number
     toolCalls: number
@@ -48,9 +49,16 @@ export function AgentDetailCard({
           className="w-2 h-2 rounded-full"
           style={{ background: stateColor, boxShadow: `0 0 8px ${stateColor}` }}
         />
-        <span className="text-xs font-mono" style={{ color: COLORS.textPrimary }}>
-          {agent.name}
-        </span>
+        <div className="flex flex-col">
+          <span className="text-xs font-mono" style={{ color: COLORS.textPrimary }}>
+            {agent.name}
+          </span>
+          {agent.model && (
+            <span className="text-[9px] font-mono" style={{ color: COLORS.textDim }}>
+              {formatModelName(agent.model)}
+            </span>
+          )}
+        </div>
       </PanelHeader>
 
       {/* Context bar */}
