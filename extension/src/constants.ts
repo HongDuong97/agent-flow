@@ -197,10 +197,13 @@ export function resolveSubagentChildName(input: Record<string, unknown>): string
   return String(input.description || input.subagent_type || 'subagent').slice(0, CHILD_NAME_MAX)
 }
 
-/** Prefixes that identify system-injected content (not real user messages)
- *  for Claude Code. Codex has its own extraction in codex-rollout-parser.ts
- *  because the injection format is structurally different (e.g. real prompts
- *  wrapped inside a "# Context from my IDE setup:" block, reachable via the
+/** Prefixes that identify system-injected content (not real user messages).
+ *  Used by both Claude Code (transcript-parser.ts) and Codex
+ *  (codex-rollout-parser.ts extractCodexUserText), so additions here
+ *  widen filtering for both runtimes.
+ *  Codex also has its own extraction logic because the injection format
+ *  is structurally different (e.g. real prompts wrapped inside a
+ *  "# Context from my IDE setup:" block, reachable via the
  *  "## My request for Codex:" marker). */
 export const SYSTEM_CONTENT_PREFIXES = [
   'This session is being continued',
@@ -208,4 +211,8 @@ export const SYSTEM_CONTENT_PREFIXES = [
   '<system-reminder',
   '<available-deferred-tools',
   '<command-name',
+  '<system_instruction',
+  '<task-notification',
+  '<local-command-stdout',
+  '<local-command-caveat',
 ] as const
