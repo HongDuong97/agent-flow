@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import { strict as assert } from 'node:assert'
 import { formatModelName } from '../web/lib/utils'
+import { CLAUDE_FAMILIES } from '../web/lib/canvas-constants'
 
 test('formats new Claude model ids', () => {
   assert.equal(formatModelName('claude-sonnet-4-20250514'), 'Sonnet 4')
@@ -34,4 +35,16 @@ test('formats GPT model ids', () => {
 
 test('falls back to stripped base model id for unknown formats', () => {
   assert.equal(formatModelName('custom-model-20250101'), 'custom-model')
+})
+
+test('matches case-insensitively, preserving fallback case', () => {
+  assert.equal(formatModelName('CLAUDE-3-5-SONNET-20241022'), 'Sonnet 3.5')
+  assert.equal(formatModelName('US.ANTHROPIC.CLAUDE-OPUS-4-1-20250805-V1:0'), 'Opus 4.1')
+  assert.equal(formatModelName('Custom-Model-20250101'), 'Custom-Model')
+})
+
+test('every CLAUDE_FAMILIES entry is formattable', () => {
+  for (const f of CLAUDE_FAMILIES) {
+    assert.equal(formatModelName(`claude-${f.name}-9-20990101`), `${f.name[0].toUpperCase()}${f.name.slice(1)} 9`)
+  }
 })

@@ -1,3 +1,5 @@
+import { CLAUDE_FAMILY_ALTERNATION } from './canvas-constants'
+
 /** Convert a 0–1 alpha value to a two-character hex string (e.g. 0.5 → '80') */
 export function alphaHex(alpha: number): string {
   return Math.floor(alpha * 255).toString(16).padStart(2, '0')
@@ -13,16 +15,16 @@ export function truncatePath(path: string, segments = 3): string {
   return path.split('/').slice(-segments).join('/')
 }
 
-const PROVIDER_PREFIX = /^[a-z]+\.anthropic\./
-const VERSION_SUFFIX = /-v\d+:\d+$/
+const PROVIDER_PREFIX = /^[a-z]+\.anthropic\./i
+const VERSION_SUFFIX = /-v\d+:\d+$/i
 const DATE_STAMP = /-\d{8}(?=$|-)/
 
-const CLAUDE_NEW = /claude-(sonnet|opus|haiku|fable|mythos)-(\d+)(?:-(\d+))?/
-const CLAUDE_LEGACY = /claude-(\d+)(?:-(\d+))?-(sonnet|opus|haiku|fable|mythos)/
-const GPT = /gpt-(\S+?)(?:-\d{4}-\d{2}-\d{2})?$/
+const CLAUDE_NEW = new RegExp(`claude-(${CLAUDE_FAMILY_ALTERNATION})-(\\d+)(?:-(\\d+))?`, 'i')
+const CLAUDE_LEGACY = new RegExp(`claude-(\\d+)(?:-(\\d+))?-(${CLAUDE_FAMILY_ALTERNATION})`, 'i')
+const GPT = /gpt-(\S+?)(?:-\d{4}-\d{2}-\d{2})?$/i
 
 function claudeLabel(family: string, major: string, minor?: string): string {
-  const name = family[0].toUpperCase() + family.slice(1)
+  const name = family[0].toUpperCase() + family.slice(1).toLowerCase()
   return minor ? `${name} ${major}.${minor}` : `${name} ${major}`
 }
 
