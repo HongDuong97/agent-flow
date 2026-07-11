@@ -288,6 +288,7 @@ export function MessageFeedPanel({
                       showAgent={activeTab === 'all'}
                       isSelected={selectedAgentId === msg.agentId}
                       onClick={() => { onAgentClick(msg.agentId); setExpanded(false) }}
+                      runtime={agents.get(msg.agentId)?.runtime}
                     />
                   </div>
                 ))}
@@ -332,16 +333,18 @@ function TabButton({ label, active, onClick, color, hasUnread }: {
 
 // ── Message Row ──
 
-function MessageRow({ message, agentId, agentName, showAgent, isSelected, onClick }: {
+function MessageRow({ message, agentId, agentName, showAgent, isSelected, onClick, runtime }: {
   message: ConversationMessage
   agentId: string
   agentName: string
   showAgent: boolean
   isSelected: boolean
   onClick: () => void
+  runtime?: Agent['runtime']
 }) {
   const [expanded, setExpanded] = useState(false)
   const role = ROLE_COLORS[message.type] ?? ROLE_COLORS.assistant
+  const roleLabel = message.type === 'assistant' && runtime === 'codex' ? 'CODEX' : role.label
   const isLong = message.content.length > MESSAGE_TRUNCATE_MAX
   const displayText = expanded || !isLong ? message.content : message.content.slice(0, MESSAGE_TRUNCATE_MAX) + '...'
 
@@ -357,7 +360,7 @@ function MessageRow({ message, agentId, agentName, showAgent, isSelected, onClic
       {/* Header row */}
       <div className="flex items-center gap-1.5 mb-0.5">
         <span className="text-[9px] font-mono font-semibold" style={{ color: role.text + '90' }}>
-          {role.label}
+          {roleLabel}
         </span>
         {showAgent && (
           <span className="text-[9px] font-mono" style={{ color: COLORS.textMuted }}>
