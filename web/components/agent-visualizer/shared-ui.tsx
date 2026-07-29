@@ -67,9 +67,10 @@ interface DetailPopupProps {
   estimatedHeight: number
   onClose: () => void
   children: ReactNode
+  id?: string
 }
 
-export function DetailPopup({ position, width, estimatedHeight, onClose, children }: DetailPopupProps) {
+export function DetailPopup({ position, width, estimatedHeight, onClose, children, id }: DetailPopupProps) {
   const ref = useRef<HTMLDivElement>(null)
   const { left, top } = clampPopupPosition(position, width, estimatedHeight)
 
@@ -77,6 +78,7 @@ export function DetailPopup({ position, width, estimatedHeight, onClose, childre
 
   return (
     <div
+      id={id}
       ref={ref}
       {...stopPropagationHandlers}
       style={{ position: 'absolute', left, top, width, zIndex: Z.detailCard }}

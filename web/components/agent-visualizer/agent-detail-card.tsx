@@ -28,20 +28,16 @@ export function AgentDetailCard({
   const contextPercent = Math.round((agent.tokensUsed / agent.tokensMax) * 100)
   const stateColor = getStateColor(agent.state)
 
-  // Fixed position: middle-left of the screen (below message feed panel)
-  const left = CARD.margin
-  const top = typeof window !== 'undefined' ? Math.max(100, (window.innerHeight - CARD.detail.height) / 2) : 300
-
   return (
     <GlassCard
+      id="agent-detail-card"
       visible={true}
       className="agent-detail-card"
       style={{
         position: 'absolute',
-        left,
-        top,
         width: CARD.detail.width,
         zIndex: Z.detailCard,
+        opacity: 0, // start invisible until positioned by canvas
       }}
     >
       <PanelHeader onClose={onClose} className="mb-3">

@@ -17,18 +17,13 @@ export function truncateText(ctx: CanvasRenderingContext2D, text: string, maxWid
 export function drawTetherLine(ctx: CanvasRenderingContext2D, agent: Agent, transform: { x: number; y: number; scale: number }, canvasH: number) {
   const r = agent.isMain ? NODE.radiusMain : NODE.radiusSub
 
-  // Match the detail card's fixed middle-left position (glass-card.tsx)
-  const screenLeft = CARD.margin
-  const screenTop = Math.max(100, (canvasH - CARD.detail.height) / 2)
-
-  // Convert card position (screen space) back to world coords for the tether endpoint
-  const endX = (screenLeft - transform.x) / transform.scale
-  const endY = (screenTop + CARD.detail.height * 0.3 - transform.y) / transform.scale
-
-  // Start from hex edge toward the card
-  const angle = Math.atan2(endY - agent.y, endX - agent.x)
-  const startX = agent.x + Math.cos(angle) * r
-  const startY = agent.y + Math.sin(angle) * r
+  // The card is positioned 60 screen-pixels below the node
+  const offsetWorld = 60 / transform.scale
+  
+  const startX = agent.x
+  const startY = agent.y + r
+  const endX = agent.x
+  const endY = agent.y + r + offsetWorld
 
   ctx.save()
   ctx.globalAlpha = TETHER.alpha
@@ -37,9 +32,7 @@ export function drawTetherLine(ctx: CanvasRenderingContext2D, agent: Agent, tran
   ctx.setLineDash(TETHER.dash)
   ctx.beginPath()
   ctx.moveTo(startX, startY)
-  const midX = (startX + endX) / 2
-  const midY = Math.min(startY, endY) - TETHER.curveOffset
-  ctx.quadraticCurveTo(midX, midY, endX, endY)
+  ctx.lineTo(endX, endY)
   ctx.stroke()
   ctx.setLineDash([])
 

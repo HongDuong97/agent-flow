@@ -23,7 +23,7 @@ export function ToolDetailPopup({ tool, position, onClose }: ToolDetailPopupProp
   const stateColor = tool.state === 'running' ? COLORS.tool_calling : COLORS.complete
 
   return (
-    <DetailPopup position={position} width={POPUP.tool.width} estimatedHeight={POPUP.tool.estimatedHeight} onClose={onClose}>
+    <DetailPopup id="tool-detail-popup" position={position} width={POPUP.tool.width} estimatedHeight={POPUP.tool.estimatedHeight} onClose={onClose}>
       <PanelHeader onClose={onClose}>
         <span className="text-[9px]" style={{ color: stateColor }}>
           {tool.state === 'running' ? '⚙' : '✓'}

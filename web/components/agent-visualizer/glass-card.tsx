@@ -8,9 +8,10 @@ interface GlassCardProps {
   className?: string
   style?: React.CSSProperties
   visible: boolean
+  id?: string
 }
 
-export function GlassCard({ children, className = '', style, visible }: GlassCardProps) {
+export function GlassCard({ children, className = '', style, visible, id }: GlassCardProps) {
   const [mounted, setMounted] = useState(false)
   const [animating, setAnimating] = useState(false)
 
@@ -29,12 +30,14 @@ export function GlassCard({ children, className = '', style, visible }: GlassCar
 
   return (
     <div
+      id={id}
       className={`glass-card ${className}`}
       style={{
         ...style,
         opacity: animating ? 1 : 0,
         transform: animating ? 'scale(1)' : 'scale(0.95)',
         transition: 'opacity 0.2s ease-out, transform 0.2s ease-out',
+        width: 'fit-content'
       }}
     >
       {children}

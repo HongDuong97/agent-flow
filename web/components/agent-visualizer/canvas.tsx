@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState, useCallback } from 'react'
-import { Agent, Particle, Edge, Discovery, DepthParticle } from '@/lib/agent-types'
+import { Agent, Particle, Edge, Discovery, DepthParticle, CARD, NODE } from '@/lib/agent-types'
 import type { SimulationState } from '@/hooks/simulation/types'
 import { getStateColor } from '@/lib/colors'
 import { ANIM_SPEED, PERF_OVERLAY, PERF_OVERLAY_ENABLED } from '@/lib/canvas-constants'
@@ -277,7 +277,45 @@ export function AgentCanvas({
 
       if (selectedAgentId) {
         const agent = agents.get(selectedAgentId)
-        if (agent) drawTetherLine(ctx, agent, transform, h)
+        if (agent) {
+          drawTetherLine(ctx, agent, transform, h)
+          const card = document.getElementById('agent-detail-card')
+          if (card) {
+            const screenX = agent.x * transform.scale + transform.x
+            const screenY = agent.y * transform.scale + transform.y
+            const cardW = CARD.detail.width
+            const r = agent.isMain ? NODE.radiusMain : NODE.radiusSub
+            const targetLeft = Math.min(Math.max(screenX - cardW / 2, CARD.margin), w - cardW - CARD.margin)
+            card.style.left = `${targetLeft}px`
+            card.style.top = `${screenY + r * transform.scale + 60}px`
+          }
+        }
+      }
+
+      if (selectedToolCallId) {
+        const tool = toolCalls.get(selectedToolCallId)
+        if (tool) {
+          const card = document.getElementById('tool-detail-popup')
+          if (card) {
+            const screenX = tool.x * transform.scale + transform.x
+            const screenY = tool.y * transform.scale + transform.y
+            card.style.left = `${Math.min(Math.max(screenX - 160, CARD.margin), w - 320 - CARD.margin)}px` // POPUP.tool.width is 320
+            card.style.top = `${screenY + 20}px`
+          }
+        }
+      }
+
+      if (selectedDiscoveryId) {
+        const disc = discoveries.find(d => d.id === selectedDiscoveryId)
+        if (disc) {
+          const card = document.getElementById('discovery-detail-popup')
+          if (card) {
+            const screenX = disc.x * transform.scale + transform.x
+            const screenY = disc.y * transform.scale + transform.y
+            card.style.left = `${Math.min(Math.max(screenX - 160, CARD.margin), w - 320 - CARD.margin)}px` // POPUP.discovery.width is 320
+            card.style.top = `${screenY + 20}px`
+          }
+        }
       }
 
       ctx.restore()

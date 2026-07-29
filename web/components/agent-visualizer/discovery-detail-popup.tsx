@@ -25,7 +25,7 @@ export function DiscoveryDetailPopup({ discovery, position, onClose }: Discovery
     discovery.type === 'finding' ? 'FINDING' : 'CODE'
 
   return (
-    <DetailPopup position={position} width={POPUP.discovery.width} estimatedHeight={POPUP.discovery.estimatedHeight} onClose={onClose}>
+    <DetailPopup id="discovery-detail-popup" position={position} width={POPUP.discovery.width} estimatedHeight={POPUP.discovery.estimatedHeight} onClose={onClose}>
       <PanelHeader onClose={onClose}>
         <span
           className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"

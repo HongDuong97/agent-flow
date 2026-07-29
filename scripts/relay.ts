@@ -15,6 +15,7 @@ import { readNewFileLines, foldPathCase } from '../extension/src/fs-utils'
 import { scanSubagentsDir, readSubagentNewLines } from '../extension/src/subagent-watcher'
 import { handlePermissionDetection } from '../extension/src/permission-detection'
 import { CodexSessionWatcher } from '../extension/src/codex-session-watcher'
+import { AntigravitySessionWatcher } from '../extension/src/antigravity-session-watcher'
 import {
   INACTIVITY_TIMEOUT_MS, SCAN_INTERVAL_MS, ACTIVE_SESSION_AGE_S, POLL_FALLBACK_MS,
   SESSION_ID_DISPLAY, SYSTEM_PROMPT_BASE_TOKENS, ORCHESTRATOR_NAME,
@@ -357,7 +358,7 @@ export interface Relay {
   dispose: () => void
 }
 
-export type RelayRuntimeMode = 'claude' | 'codex' | 'auto'
+export type RelayRuntimeMode = 'claude' | 'codex' | 'antigravity' | 'auto'
 
 export interface RelayOptions {
   workspace: string
@@ -370,9 +371,9 @@ export interface RelayOptions {
 }
 
 function resolveRuntimeMode(explicit?: RelayRuntimeMode): RelayRuntimeMode {
-  if (explicit === 'claude' || explicit === 'codex' || explicit === 'auto') return explicit
+  if (explicit === 'claude' || explicit === 'codex' || explicit === 'antigravity' || explicit === 'auto') return explicit
   const raw = process.env.AGENT_FLOW_RUNTIME
-  return raw === 'claude' || raw === 'codex' ? raw : 'auto'
+  return raw === 'claude' || raw === 'codex' || raw === 'antigravity' ? raw : 'auto'
 }
 
 export async function createRelay(options: RelayOptions): Promise<Relay> {
@@ -389,7 +390,8 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
   const mode = resolveRuntimeMode(options.runtime)
   const wantClaude = mode === 'claude' || mode === 'auto'
   const wantCodex = mode === 'codex' || mode === 'auto'
-  log(`[relay] Runtime mode: ${mode} (watching: ${[wantClaude && 'claude', wantCodex && 'codex'].filter(Boolean).join(', ')})`)
+  const wantAntigravity = mode === 'antigravity' || mode === 'auto'
+  log(`[relay] Runtime mode: ${mode} (watching: ${[wantClaude && 'claude', wantCodex && 'codex', wantAntigravity && 'antigravity'].filter(Boolean).join(', ')})`)
 
   let hookServer: HookServer | null = null
   let scanInterval: NodeJS.Timeout | null = null
@@ -437,6 +439,16 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
       broadcastSessionLifecycle(lifecycle.type, lifecycle.sessionId, lifecycle.label)
     })
     codexWatcher.start()
+  }
+
+  let antigravityWatcher: AntigravitySessionWatcher | null = null
+  if (wantAntigravity) {
+    antigravityWatcher = new AntigravitySessionWatcher()
+    antigravityWatcher.onEvent((event) => broadcastEvent(event))
+    antigravityWatcher.onSessionLifecycle((lifecycle) => {
+      broadcastSessionLifecycle(lifecycle.type, lifecycle.sessionId, lifecycle.label)
+    })
+    antigravityWatcher.start()
   }
 
   const telemetry = options.telemetry
@@ -496,20 +508,15 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
         })
       }
       if (codexWatcher) sessionList.push(...codexWatcher.getActiveSessions())
+      if (antigravityWatcher) sessionList.push(...antigravityWatcher.getActiveSessions())
       if (sessionList.length > 0) {
         sendSSE(res, { type: 'session-list', sessions: sessionList })
       }
 
-      // Replay buffered events for the most recent active session
-      const sorted = [...sessionList].sort((a, b) => {
-        const aActive = a.status === 'active' ? 1 : 0
-        const bActive = b.status === 'active' ? 1 : 0
-        if (aActive !== bActive) return bActive - aActive
-        return b.lastActivityTime - a.lastActivityTime
-      })
-      if (sorted.length > 0) {
-        const buffered = eventBuffer.get(sorted[0].id)
-        if (buffered) {
+      // Replay buffered events for ALL sessions so the frontend can switch tabs
+      for (const session of sessionList) {
+        const buffered = eventBuffer.get(session.id)
+        if (buffered && buffered.length > 0) {
           sendSSE(res, { type: 'agent-event-batch', events: buffered })
         }
       }
@@ -542,6 +549,7 @@ export async function createRelay(options: RelayOptions): Promise<Relay> {
         }
       }
       codexWatcher?.dispose()
+      antigravityWatcher?.dispose()
     },
   }
 }
