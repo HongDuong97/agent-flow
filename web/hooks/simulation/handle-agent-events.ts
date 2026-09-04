@@ -120,7 +120,7 @@ export function handleAgentComplete(
   const name = asString(payload.name)
   const agent = state.agents.get(name)
   if (agent && agent.state !== 'complete') {
-    state.agents.set(name, { ...agent, state: 'complete', completeTime: currentTime })
+    state.agents.set(name, { ...agent, state: 'complete', currentTool: undefined, completeTime: currentTime })
 
     const entry = state.timelineEntries.get(name)
     if (entry) {
@@ -131,7 +131,7 @@ export function handleAgentComplete(
     const agentsToComplete = [name]
     for (const [childId, childAgent] of state.agents) {
       if (childAgent.parentId === name && childAgent.state !== 'complete') {
-        state.agents.set(childId, { ...childAgent, state: 'complete', completeTime: currentTime })
+        state.agents.set(childId, { ...childAgent, state: 'complete', currentTool: undefined, completeTime: currentTime })
         agentsToComplete.push(childId)
         const childEntry = state.timelineEntries.get(childId)
         if (childEntry) {

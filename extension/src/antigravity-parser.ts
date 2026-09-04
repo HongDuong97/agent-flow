@@ -86,6 +86,8 @@ export class AntigravityParser {
       
       const contentStr = typeof parsed.content === 'string' ? parsed.content : JSON.stringify(parsed.content || {})
       
+      const isError = parsed.status === 'ERROR' || parsed.status === 'CANCELLED'
+
       this.delegate.emit({
         time,
         type: 'tool_call_end',
@@ -93,6 +95,7 @@ export class AntigravityParser {
           agent: ORCHESTRATOR_NAME,
           tool: name,
           result: contentStr.slice(0, 500) + (contentStr.length > 500 ? '...' : ''),
+          isError,
         },
       })
     }

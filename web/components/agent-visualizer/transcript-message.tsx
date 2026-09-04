@@ -110,7 +110,7 @@ export function TranscriptMessage({ message, compact = false, searchQuery, assis
               compact={compact}
             />
           ) : (
-            <div className="text-[9px] font-mono opacity-60" style={{ color: COLORS.assistantText }}>
+            <div className="text-[9px] font-mono opacity-60 break-words overflow-x-hidden" style={{ color: COLORS.assistantText }}>
               {message.content}
             </div>
           )}
